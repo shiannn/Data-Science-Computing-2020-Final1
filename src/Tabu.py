@@ -42,17 +42,22 @@ class TabuSearch():
             self.pnew = None
             moveb = None
             #print(self.pcur.x, self.pcur.y)
-            for move in self.moves:
-                self.ptest = self.mutation(self.pcur, move)
-                #print(self.ptest.x)
-                self.ptest.y = self.f_objective_function(self.ptest)
-                COND = ((move not in self.tabu) and (((self.pnew is None) or (self.ptest.y > self.pnew.y)) or self.ptest.y > self.pbest.y))
-                if iteration == 1:
-                    print(self.ptest.y)
-                if COND:
-                    self.pnew = copy.copy(self.ptest)
-                    moveb = move
-                #print('self.pnew.y', self.pnew.y)
+            #for move in self.moves:
+            for _ in range(10):
+                sample_moves = random.sample(self.moves, 3)
+                #print(sample_moves)
+                #exit(0)
+                for move in sample_moves:
+                    self.ptest = self.mutation(self.pcur, move)
+                    #print(self.ptest.x)
+                    self.ptest.y = self.f_objective_function(self.ptest)
+                    COND = ((move not in self.tabu) and (((self.pnew is None) or (self.ptest.y > self.pnew.y)) or self.ptest.y > self.pbest.y))
+                    if iteration == 1:
+                        print(self.ptest.y)
+                    if COND:
+                        self.pnew = copy.copy(self.ptest)
+                        moveb = move
+                    #print('self.pnew.y', self.pnew.y)
             #if iteration == 3:
             #    exit(0)
             self.pcur = copy.copy(self.pnew)
