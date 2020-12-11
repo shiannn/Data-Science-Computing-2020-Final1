@@ -29,10 +29,13 @@ print('start')
 #np.split(mtx.indices, mtx.indptr[1:-1])
 st = time.time()
 for it in range(15):
-    print(mtx.indptr)
-    print(np.diff(mtx.indptr))
-    chosen_part = np.random.uniform(low=0.0, high=1.0, size=np.diff(mtx.indptr).shape)
-    chosen_in_each_interval = np.floor(np.diff(mtx.indptr)* chosen_part).astype(int)
+    #print(mtx.indptr)
+    #print(np.diff(mtx.indptr))
+    available_neighbors = np.diff(mtx.indptr)
+    #chosen_part = np.random.uniform(low=0.0, high=1.0, size=available_neighbors.shape)
+    chosen_part = np.random.randint(g.vcount(), size = available_neighbors.shape)
+    #chosen_in_each_interval = np.floor(available_neighbors* chosen_part).astype(int)
+    chosen_in_each_interval = np.mod(chosen_part, available_neighbors)#.astype(int)
     neighs = chosen_in_each_interval + mtx.indptr[:-1]
     print(neighs)
     neighbors = mtx.indices[neighs]
