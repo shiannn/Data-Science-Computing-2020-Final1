@@ -6,6 +6,8 @@ DataRoot = ProjectRoot / Path('Data')
 karate_dataset = DataRoot / Path('soc-karate') / Path('soc-karate.mtx')
 coauthors_dataset = DataRoot / Path('ca-coauthors-dblp') / Path('ca-coauthors-dblp.mtx')
 
+ans_dir = Path('ans_membership')
+
 if __name__ == '__main__':
     print(ProjectRoot)
     print(DataRoot)

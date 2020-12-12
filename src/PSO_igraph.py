@@ -6,7 +6,8 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 import igraph
 from igraph import Graph, VertexClustering
-from config import karate_dataset, coauthors_dataset
+from config import karate_dataset, coauthors_dataset, ans_dir
+from pathlib import Path
 
 class ParticleSwarm():
     def __init__(self, graph, mtx, lower_bound=0, upper_bound=1, max_iterations=20, N_swarm_size=4, D_dimension=34, 
@@ -92,10 +93,7 @@ class ParticleSwarm():
         for particle in x:
             locus_based = self.get_locus(particle)
             #print(locus_based)
-            row = np.arange(locus_based.shape[0])
-            col = locus_based[row]
-            attempt_graph = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
-            num_cluster, membership = connected_components(attempt_graph)
+            num_cluster, membership = self.get_membership(locus_based)
             score = self.graph.modularity(membership)
             scores.append(score)
             #print(score)
@@ -104,28 +102,21 @@ class ParticleSwarm():
         
         return scores
     
+    def get_membership(self, locus_based):
+        row = np.arange(locus_based.shape[0])
+        col = locus_based[row]
+        attempt_graph = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
+        num_cluster, membership = connected_components(attempt_graph)
+
+        return num_cluster, membership
+
     def get_locus(self, x):
         chosen_neighbor_ids = np.floor(np.diff(self.mtx.indptr)* x).astype(int)
         neighs_pos = chosen_neighbor_ids + self.mtx.indptr[:-1]
         locus_based = self.mtx.indices[neighs_pos]
 
         return locus_based
-"""
-class Solution():
-    def __init__(self, graph, mtx):
-        num_avail_neighbors = np.diff(mtx.indptr)
-        #chosen_nums = np.random.randint(graph.vcount(), size = num_avail_neighbors.shape)
-        #chosen_neighbor_ids = np.mod(chosen_nums, num_avail_neighbors)#.astype(int)
-        chosen_neighbor_ids = np.floor(np.diff(mtx.indptr)* chosen_part).astype(int)
-        neighs_pos = chosen_neighbor_ids + mtx.indptr[:-1]
-        locus_based = mtx.indices[neighs_pos]
 
-        row = np.arange(locus_based.shape[0])
-        col = locus_based[np.arange(locus_based.shape[0])]
-        self.x = locus_based
-        self.y = None
-        print(self.x)
-"""
 def main():
     #dataset = karate_dataset
     dataset = coauthors_dataset
@@ -136,9 +127,14 @@ def main():
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start')
     #pso = ParticleSwarm(graph = graph, N_swarm_size=5, D_dimension=len(graph.nodes), c1=1, c2=1, max_iterations=10)
-    pso = ParticleSwarm(graph, mtx, N_swarm_size=5, D_dimension=graph.vcount(), c1=1, c2=1, max_iterations=10)
+    pso = ParticleSwarm(graph, mtx, N_swarm_size=15, D_dimension=graph.vcount(), c1=1.0, c2=1.0, max_iterations=15)
     print(pso.swarm_position)
     global_center, global_best = pso.particleSwarm()
+    best_locus = pso.get_locus(global_center)
+    num_cluster, membership = pso.get_membership(best_locus)
+
+    name = 'PSO_{}_{}.npy'.format(dataset.stem, np.round(global_best, 4))
+    np.save(ans_dir / Path(name), membership)
 
 if __name__ == '__main__':
     main()

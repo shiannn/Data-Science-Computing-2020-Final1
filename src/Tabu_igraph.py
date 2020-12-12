@@ -119,8 +119,8 @@ class Solution():
         print(self.x)
 
 def main():
-    #dataset = karate_dataset
-    dataset = coauthors_dataset
+    dataset = karate_dataset
+    #dataset = coauthors_dataset
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')

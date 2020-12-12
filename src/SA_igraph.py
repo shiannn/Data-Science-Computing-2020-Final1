@@ -16,7 +16,7 @@ class SimulatedAnnealing():
         self.pcur = Solution(graph, mtx)
         #print(self.pcur.x)
         #print(self.pcur.y)
-        self.pnew = copy.copy(self.pcur)
+        self.pnew = copy.deepcopy(self.pcur)
         self.pb = None
         self.max_iterations = 10
         self.temperature = np.inf
