@@ -22,7 +22,7 @@ def main():
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start evaluate')
 
-    membership = np.load('ans_membership/PCO_ca-coauthors-dblp_0.3803.npy')
+    membership = np.load('ans_membership/PSO_ca-coauthors-dblp_0.4107.npy')
     score = graph.modularity(membership)
     print(score)
 
