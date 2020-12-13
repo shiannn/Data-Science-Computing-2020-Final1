@@ -10,14 +10,16 @@ from config import karate_dataset, coauthors_dataset, ans_dir
 from pathlib import Path
 
 class GeneticAlgorithm():
-    def __init__(self, graph, mtx, popu_size = 10, iterations = 20, mating_pool_size=4, flip_locations=2):
+    def __init__(self, graph, mtx, popu_size = 10, iterations = 20, mating_pool_size=4, k_cross_point=2, flip_locations=2):
         self.graph = graph
         self.mtx = mtx
 
         self.population_size = popu_size
         self.max_generations = iterations
         self.mating_pool_size = mating_pool_size
-        self.k_cross_point = 2
+        self.k_cross_point = k_cross_point
+        self.cross_idx = np.random.randint(graph.vcount(), size=self.k_cross_point)
+
         self.flip_locations = flip_locations
 
         self.plot_list = []
@@ -88,19 +90,19 @@ class GeneticAlgorithm():
             #print(best_sol, self.best_value)
             
             ### select parent
-            select_prob = popu_scores / popu_scores.sum()
+            #select_prob = popu_scores / popu_scores.sum()
+            select_prob = np.exp(popu_scores) / np.exp(popu_scores).sum()
             parents_idx = np.random.choice(np.arange(new_population.shape[0]), size=self.mating_pool_size, p = select_prob)
             parents = new_population[parents_idx]
             
             ### crossover
-            offsprings = []
-            for _ in range(self.population_size - self.mating_pool_size):
-                gp_idxs = np.random.randint(0, self.mating_pool_size, 2)
-                gp = parents[gp_idxs]
-                #gp1, gp2 = random.sample(parents, 2)
-                child = self.multi_point_crossover(gp)
-                offsprings.append(child)
-            offsprings = np.array(offsprings)
+            #offsprings = []
+            offsprings_num = self.population_size - self.mating_pool_size
+            gp_idxs = np.random.randint(self.mating_pool_size, size=(offsprings_num, 2))
+            gp1 = parents[gp_idxs[:,0]]
+            gp2 = parents[gp_idxs[:,1]]
+            #offsprings = self.uniform_crossover(gp1, gp2)
+            offsprings = self.multi_point_crossover(gp1, gp2)
 
             #print(offsprings)
             ### mutation
@@ -125,38 +127,45 @@ class GeneticAlgorithm():
         #print(mut_cols)
         offsprings[mut_rows, mut_cols] = new_id
         #print(offsprings)
-        """
-        for f in range(self.flip_locations):
-            #print(offsprings[np.arange(mut.shape[0]), mut[:,f]])
-            available_neighbors = np.diff(self.mtx.indptr)
-            new_id = np.random.randint(low=np.zeros(mut[:,f].shape), high=available_neighbors[mut[:,f]], size=mut[:,f].shape)
-            #new_neighbors = self.mtx.indices[new_id]
-            offsprings[np.arange(mut.shape[0]), mut[:,f]] = new_id
-        """
-        #print(offsprings)
         
         return offsprings
 
-    def multi_point_crossover(self, gp):
+    def multi_point_crossover(self, gp1, gp2):
+        ### Multi point crossover
+        #cross_pt = np.random.randint(2, size=gp1.shape[1])
+        cross_helper = np.zeros(gp1.shape[1])
+        cross_helper[self.cross_idx] = 1
+        cross_helper = np.cumsum(cross_helper)
+        cross_helper[cross_helper%2==0] = 0
+        cross_helper[cross_helper%2==1] = 1
+        #print(cross_helper)
+        g = np.where(cross_helper==0, gp1, gp2)
+
+        return g
+
+    def uniform_crossover(self, gp1, gp2):
         ### Uniform crossover
-        num_points = gp.shape[1]
-        logits = np.random.rand(num_points)
+        g = np.zeros(gp1.shape)
+        logits = np.random.rand(g.shape[0], g.shape[1])
         #print(logits)
-        #print(gp)
-        g = np.where(logits>=0.5, gp[1], gp[0])
-        #print(g)
+        g = np.where(logits>=0.5, gp2, gp1)
+        #print(g.shape)
+        
         return g
 
 def main():
-    #dataset = karate_dataset
-    dataset = coauthors_dataset
+    dataset = karate_dataset
+    #dataset = coauthors_dataset
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')
     srcs, tgts = mtx.nonzero()
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start')
-    ga = GeneticAlgorithm(graph, mtx, popu_size = 30, iterations = 20, mating_pool_size=10, flip_locations=100)
+    ga = GeneticAlgorithm(graph, mtx, 
+    popu_size = 150, iterations = 20, mating_pool_size=15, 
+    k_cross_point=3000, flip_locations=100
+    )
     best_sol, best_value = ga.genetic_algorithm()
     """
     global_center, global_best = pso.particleSwarm()
