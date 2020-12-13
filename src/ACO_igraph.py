@@ -51,10 +51,11 @@ class AntColonyOptimization():
 
     def antColonyOptimization(self):
         for iteration in range(self.max_iterations):
-            ants = [Ant(self) for i in range(self.N_particle_size)]
+            ants = [Ant(self) for _ in range(self.N_particle_size)]
             for ant in ants:
-                for i in range(self.distance_matrix.shape[0] - 1):
-                    ant.move()
+                #for i in range(self.distance_matrix.shape[0] - 1):
+                ant.move()
+                exit(0)
                 #print(ant.tabu)
                 #ant.total_value += self.distance_matrix[ant.tabu[0], ant.tabu[-1]]
                 #print(self.f_objective_function(ant.tabu))
@@ -95,13 +96,15 @@ class AntColonyOptimization():
                     self.pheromone_matrix[ant.tabu[st+1], ant.tabu[st]] += sum_delta_pheromone
         
 
-    def f_objective_function(self, x_tuple):
-        ### x should be a tuple
-        total_distance = 0
-        num_city = len(x_tuple)
-        for idx in range(num_city):
-            total_distance += self.distance_matrix[x_tuple[idx], x_tuple[(idx+1)%num_city]]
-        return total_distance
+    def f_objective_function(self, x):
+        ### x should be a locus_based vector (num_vertices) with value as chosen neighbor
+        row = np.arange(x.shape[0])
+        col = x[row]
+        attempt_graph = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
+        num_cluster, membership = connected_components(attempt_graph)
+        score = self.graph.modularity(membership)
+        
+        return score
             
 
 class Ant():
@@ -115,12 +118,11 @@ class Ant():
         self.start_city = 0
         self.tabu = []
         self.tabu.append(self.start_city)
-        self.neighborhood = [i for i in range(aco.distance_matrix.shape[0])]
-        self.neighborhood.remove(self.start_city)
         self.current_state = self.start_city
 
     def move(self):
         ### calculate probability from neighborhood
+        """
         denominator = sum(
             [self.aco.pheromone_matrix[self.current_state, neighbor]**self.aco.alpha
             for neighbor in self.neighborhood]
@@ -130,14 +132,42 @@ class Ant():
             (self.aco.pheromone_matrix[self.current_state, neighbor]**self.aco.alpha)/denominator
             for neighbor in self.neighborhood
         ]
+        """
+        prob_array = self.aco.pheromone2prob()
+        new_neighbors = self.prob2neighbor(prob_array)
         #print(self.aco.pheromone_matrix)
         #print(possibilities)
-        next_city = np.random.choice(self.neighborhood, 1, p=possibilities).item()
+        #next_city = np.random.choice(self.neighborhood, 1, p=possibilities).item()
         #print(next_city)
+        score = self.aco.f_objective_function(new_neighbors)
+        print(score)
+        exit(0)
         self.total_value += self.aco.distance_matrix[self.current_state, next_city]
-        self.neighborhood.remove(next_city)
-        self.tabu.append(next_city)
-        self.current_state = next_city
+        #self.neighborhood.remove(next_city)
+        #self.tabu.append(next_city)
+        self.current_state = new_neighbors
+    
+    def prob2neighbor(self, prob):
+        ### get roulle_wheel
+        roulle_wheel = np.cumsum(prob) - np.floor(np.cumsum(prob))
+        roulle_wheel[self.aco.mtx.indptr[1:] - 1] = 1
+        roulle_wheel = roulle_wheel - prob
+        roulle_wheel[self.aco.mtx.indptr[:-1]] = 0
+        ### shot on roulle_wheel
+        shot = np.random.rand(self.aco.graph.vcount())
+        shot_on_wheel = np.repeat(shot, self.aco.num_available_neighbors)
+        interval_points = shot_on_wheel < roulle_wheel
+        ### Find False -> True or left point == 1
+        r_interval_points = np.roll(interval_points, -1)
+        r_wheel = np.roll(roulle_wheel, -1)
+        false2true = np.logical_and(interval_points==False, r_interval_points==True)
+        false2zero = np.logical_and(interval_points==False, r_wheel==0)
+        ### get neighbors
+        cum_selected_neighbors = np.logical_or(false2true, false2zero)
+        cum_selected_neighbors_ids = cum_selected_neighbors.nonzero()
+        neighbors = self.aco.mtx.indices[cum_selected_neighbors_ids]
+
+        return neighbors
 
 def main():
     dataset = karate_dataset
@@ -151,6 +181,7 @@ def main():
     
     aco = AntColonyOptimization(mtx, graph, p_evaporates=0.1, eta_scale_parameter=0.02, max_iterations=100)
     #sa.simulated_annealing()
+    aco.antColonyOptimization()
     
 
     #score = nx_comm.modularity(A, [{a for a in range(10)}, {a for a in range(10,34)}])
