@@ -24,7 +24,8 @@ class AntColonyOptimization():
         #self.pheromone_matrix = np.ones((self.node_num, self.node_num))
         #print(self.mtx.indptr.shape)
         self.num_available_neighbors = np.diff(self.mtx.indptr)
-        self.pheromone_array = 1 / np.repeat(self.num_available_neighbors, self.num_available_neighbors)
+        self.pheromone_array = self.initial_pheromone()
+        
         print(self.pheromone_array.shape)
         self.prob_array = self.pheromone2prob()
         print(self.prob_array.shape)
@@ -34,17 +35,27 @@ class AntColonyOptimization():
         
         self.plot_List = []
     
+    def initial_pheromone(self):
+        #pheromone_array = 1 / np.repeat(self.num_available_neighbors, self.num_available_neighbors)
+        neighbor_degrees = np.array(self.graph.degree(self.mtx.indices))
+        pheromone_array = neighbor_degrees.astype(np.float64)
+        #print(pheromone_array.shape)
+        
+        return pheromone_array
+
     def pheromone2prob(self):
         ### Sum total neighbors choice pheromone for each node
         #print(self.pheromone_array)
         cum_pheromone = np.cumsum(self.pheromone_array)
         #print(cum_pheromone)
+        
         sum_each_node = cum_pheromone[self.mtx.indptr[1:] - 1] - cum_pheromone[self.mtx.indptr[:-1]]
         sum_each_node += self.pheromone_array[self.mtx.indptr[:-1]]
         #print(sum_each_node)
         ### Repeat total pheromone
         rep_total_phromone = np.repeat(sum_each_node, self.num_available_neighbors)
         ### Divide total pheromone on each pheromone to get prob
+        #print(rep_total_phromone[:16])
         prob = self.pheromone_array / rep_total_phromone
         
         return prob
@@ -68,7 +79,7 @@ class AntColonyOptimization():
                     self.best_solution = ant.tabu.copy()
                 """
 
-            #print(self.best_solution)
+            print('best_cost', self.best_cost)
             #print(self.f_objective_function(self.best_solution))
             #print(np.round(self.pheromone_matrix, 2))
 
@@ -83,32 +94,30 @@ class AntColonyOptimization():
         ### Get max score and min score
         pheromone_worst = max([ant.score for ant in ants])
         pheromone_best = min([ant.score for ant in ants])
-        print(pheromone_best, pheromone_worst)
+        #print(pheromone_best, pheromone_worst)
         ### Calculate how many pheromone to add (the more best ants, the more added)
+        """
         sum_delta_pheromone = sum([
             self.eta_scale_parameter* (pheromone_best / pheromone_worst)
             #self.eta_scale_parameter* (1 - pheromone_best / pheromone_worst)
-            for ant in ants if ant.score <= pheromone_best
+            for ant in ants if ant.score >= pheromone_best
         ])
+        """
+        sum_delta_pheromone = self.eta_scale_parameter*(pheromone_best - pheromone_worst)
         #print(sum_delta_pheromone)
         ### evaporate
-        #self.pheromone_matrix *= (1 - self.p_evaporates)
         self.pheromone_array *= (1 - self.p_evaporates)
+        #if (self.pheromone_array > 0.5).all():
+        #    self.pheromone_array *= (1 - self.p_evaporates)
         #print(self.pheromone_array.shape)
         ### best ant / worst ant and add on edges of best solution
         for ant in ants:
-            if ant.total_value <= pheromone_best:
+            #if ant.score <= pheromone_worst:
+            #    self.pheromone_array[ant.new_neighbors_id] -= sum_delta_pheromone
+            if ant.score >= self.best_cost:
                 ### add pheromone on its trail if it is the best
-                #print(ant.new_neighbors_id)
-                #self.pheromone_array += sum_delta_pheromone
-                self.pheromone_array[ant.new_neighbors_id] += sum_delta_pheromone
-                #exit(0)
-                """
-                print('ant')
-                for st in range(len(ant.tabu) - 1):
-                    self.pheromone_matrix[ant.tabu[st], ant.tabu[st+1]] += sum_delta_pheromone
-                    self.pheromone_matrix[ant.tabu[st+1], ant.tabu[st]] += sum_delta_pheromone
-                """
+                #self.pheromone_array[ant.new_neighbors_id] += sum_delta_pheromone
+                self.pheromone_array[ant.new_neighbors_id] *= 1.01
         
 
     def f_objective_function(self, x):
@@ -151,6 +160,8 @@ class Ant():
         ]
         """
         prob_array = self.aco.pheromone2prob()
+        #print(self.aco.pheromone_array[:10])
+        #print(prob_array[:10])
         self.new_neighbors_id = self.prob2neighbor(prob_array)
         new_neighbors = self.aco.mtx.indices[self.new_neighbors_id]
         #print(self.aco.pheromone_matrix)
@@ -191,8 +202,8 @@ class Ant():
         return cum_selected_neighbors_ids
 
 def main():
-    dataset = karate_dataset
-    #dataset = coauthors_dataset
+    #dataset = karate_dataset
+    dataset = coauthors_dataset
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')
@@ -200,7 +211,7 @@ def main():
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start')
     
-    aco = AntColonyOptimization(mtx, graph, N_particle_size=5, p_evaporates=0.05, eta_scale_parameter=0.02, max_iterations=10)
+    aco = AntColonyOptimization(mtx, graph, N_particle_size=10, p_evaporates=0.05, eta_scale_parameter=0.1, max_iterations=20)
     #sa.simulated_annealing()
     aco.antColonyOptimization()
     
