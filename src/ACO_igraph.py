@@ -8,6 +8,8 @@ import igraph
 from igraph import Graph, VertexClustering
 from config import karate_dataset, coauthors_dataset
 
+from argument import parser_ACO
+
 class AntColonyOptimization():
     def __init__(self, mtx, graph, N_particle_size=5, max_iterations=30, p_evaporates=0.5, alpha=1, eta_scale_parameter=2):
         self.graph = graph
@@ -73,15 +75,8 @@ class AntColonyOptimization():
                 if self.best_cost is None or ant.score > self.best_cost:
                     self.best_cost = ant.score
                     self.best_solution = ant.current_state.copy()
-                """
-                if self.best_cost is None or self.f_objective_function(ant.tabu) < self.best_cost:
-                    self.best_cost = self.f_objective_function(ant.tabu)
-                    self.best_solution = ant.tabu.copy()
-                """
 
             print('best_cost', self.best_cost)
-            #print(self.f_objective_function(self.best_solution))
-            #print(np.round(self.pheromone_matrix, 2))
 
             #self.plot_List.append(self.best_cost)
 
@@ -96,20 +91,11 @@ class AntColonyOptimization():
         pheromone_best = min([ant.score for ant in ants])
         #print(pheromone_best, pheromone_worst)
         ### Calculate how many pheromone to add (the more best ants, the more added)
-        """
-        sum_delta_pheromone = sum([
-            self.eta_scale_parameter* (pheromone_best / pheromone_worst)
-            #self.eta_scale_parameter* (1 - pheromone_best / pheromone_worst)
-            for ant in ants if ant.score >= pheromone_best
-        ])
-        """
+        
         sum_delta_pheromone = self.eta_scale_parameter*(pheromone_best - pheromone_worst)
         #print(sum_delta_pheromone)
         ### evaporate
         self.pheromone_array *= (1 - self.p_evaporates)
-        #if (self.pheromone_array > 0.5).all():
-        #    self.pheromone_array *= (1 - self.p_evaporates)
-        #print(self.pheromone_array.shape)
         ### best ant / worst ant and add on edges of best solution
         for ant in ants:
             #if ant.score <= pheromone_worst:
@@ -129,55 +115,31 @@ class AntColonyOptimization():
         score = self.graph.modularity(membership)
         
         return score
+    
+    def get_membership(self, locus_based):
+        row = np.arange(locus_based.shape[0])
+        col = locus_based[row]
+        attempt_graph = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
+        num_cluster, membership = connected_components(attempt_graph)
+
+        return num_cluster, membership
             
 
 class Ant():
     def __init__(self, aco):
         self.aco = aco
-        self.total_value = 0
         self.score = 0
 
-        self.delta_pheromone = []
-
-        #self.start_city = np.random.randint(aco.distance_matrix.shape[0])
-        self.start_city = 0
         self.new_neighbors_id = None
-        self.tabu = []
-        self.tabu.append(self.start_city)
-        self.current_state = self.start_city
+        self.current_state = None
 
     def move(self):
         ### calculate probability from neighborhood
-        """
-        denominator = sum(
-            [self.aco.pheromone_matrix[self.current_state, neighbor]**self.aco.alpha
-            for neighbor in self.neighborhood]
-        )
-        #print(denominator)
-        possibilities = [
-            (self.aco.pheromone_matrix[self.current_state, neighbor]**self.aco.alpha)/denominator
-            for neighbor in self.neighborhood
-        ]
-        """
         prob_array = self.aco.pheromone2prob()
-        #print(self.aco.pheromone_array[:10])
-        #print(prob_array[:10])
         self.new_neighbors_id = self.prob2neighbor(prob_array)
         new_neighbors = self.aco.mtx.indices[self.new_neighbors_id]
-        #print(self.aco.pheromone_matrix)
-        #print(possibilities)
-        #next_city = np.random.choice(self.neighborhood, 1, p=possibilities).item()
-        #print(next_city)
-        #self.total_value += self.aco.distance_matrix[self.current_state, next_city]
-        #self.neighborhood.remove(next_city)
-        #self.tabu.append(next_city)
         self.current_state = new_neighbors
         self.score = self.aco.f_objective_function(self.current_state)
-        """
-        score = self.aco.f_objective_function(new_neighbors)
-        print(score)
-        exit(0)
-        """
     
     def prob2neighbor(self, prob):
         ### get roulle_wheel
@@ -201,9 +163,12 @@ class Ant():
 
         return cum_selected_neighbors_ids
 
-def main():
-    #dataset = karate_dataset
-    dataset = coauthors_dataset
+def main(args):
+    if args.datasets == 'karate':
+        dataset = karate_dataset
+    else:
+        dataset = coauthors_dataset
+    
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')
@@ -211,13 +176,22 @@ def main():
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start')
     
-    aco = AntColonyOptimization(mtx, graph, N_particle_size=10, p_evaporates=0.05, eta_scale_parameter=0.1, max_iterations=20)
-    #sa.simulated_annealing()
+    aco = AntColonyOptimization(
+        mtx, graph, N_particle_size=args.popu_size,
+        p_evaporates=args.evaporate, eta_scale_parameter=args.eta_scale, max_iterations=args.iterations
+    )
+    
     aco.antColonyOptimization()
+    num_cluster, membership = aco.get_membership(aco.best_solution)
+
+    if args.no_save:
+        pass
+    else:
+        name = 'ACO_{}_{}.npy'.format(dataset.stem, np.round(aco.best_cost, 4))
+        np.save(ans_dir / Path(name), membership)
+
     
 
-    #score = nx_comm.modularity(A, [{a for a in range(10)}, {a for a in range(10,34)}])
-    #print(score)
-
 if __name__ == '__main__':
-    main()
+    args = parser_ACO()
+    main(args)

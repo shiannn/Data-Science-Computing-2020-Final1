@@ -9,6 +9,8 @@ from igraph import Graph, VertexClustering
 from config import karate_dataset, coauthors_dataset, ans_dir
 from pathlib import Path
 
+from argument import parser_GA
+
 class GeneticAlgorithm():
     def __init__(self, graph, mtx, popu_size = 10, iterations = 20, mating_pool_size=4, k_cross_point=2, flip_locations=2):
         self.graph = graph
@@ -133,8 +135,9 @@ class GeneticAlgorithm():
     def multi_point_crossover(self, gp1, gp2):
         ### Multi point crossover
         #cross_pt = np.random.randint(2, size=gp1.shape[1])
+        cross_idx = np.random.randint(self.graph.vcount(), size=self.k_cross_point)
         cross_helper = np.zeros(gp1.shape[1])
-        cross_helper[self.cross_idx] = 1
+        cross_helper[cross_idx] = 1
         cross_helper = np.cumsum(cross_helper)
         cross_helper[cross_helper%2==0] = 0
         cross_helper[cross_helper%2==1] = 1
@@ -153,28 +156,35 @@ class GeneticAlgorithm():
         
         return g
 
-def main():
-    dataset = karate_dataset
-    #dataset = coauthors_dataset
+def main(args):
+    print(args)
+    if args.datasets == 'karate':
+        dataset = karate_dataset
+    else:
+        dataset = coauthors_dataset
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')
     srcs, tgts = mtx.nonzero()
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start')
-    ga = GeneticAlgorithm(graph, mtx, 
-    popu_size = 150, iterations = 20, mating_pool_size=15, 
-    k_cross_point=3000, flip_locations=100
+    ga = GeneticAlgorithm(
+        graph, mtx, 
+        popu_size = args.popu_size, iterations = args.iterations, mating_pool_size=args.mate_pool_size,
+        k_cross_point=args.k_cross_points, flip_locations=args.flip_locations
     )
     best_sol, best_value = ga.genetic_algorithm()
-    """
-    global_center, global_best = pso.particleSwarm()
-    best_locus = pso.get_locus(global_center)
-    num_cluster, membership = pso.get_membership(best_locus)
+    
+    best_locus = ga.get_locus(best_sol)
+    num_cluster, membership = ga.get_membership(best_locus)
 
-    name = 'PSO_{}_{}.npy'.format(dataset.stem, np.round(global_best, 4))
-    np.save(ans_dir / Path(name), membership)
-    """
+    if args.no_save:
+        pass
+    else:
+        name = 'GA_{}_{}.npy'.format(dataset.stem, np.round(best_value, 4))
+        np.save(ans_dir / Path(name), membership)
+    
 
 if __name__ == '__main__':
-    main()
+    args = parser_GA()
+    main(args)

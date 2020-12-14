@@ -9,6 +9,8 @@ from igraph import Graph, VertexClustering
 from config import karate_dataset, coauthors_dataset, ans_dir
 from pathlib import Path
 
+from argument import parser_PSO
+
 class ParticleSwarm():
     def __init__(self, graph, mtx, lower_bound=0, upper_bound=1, max_iterations=20, N_swarm_size=4, D_dimension=34, 
         c1=1, c2=1, w=1, swarm_position=None, swarm_velocity=None):
@@ -117,9 +119,11 @@ class ParticleSwarm():
 
         return locus_based
 
-def main():
-    #dataset = karate_dataset
-    dataset = coauthors_dataset
+def main(args):
+    if args.datasets == 'karate':
+        dataset = karate_dataset
+    else:
+        dataset = coauthors_dataset
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')
@@ -127,14 +131,21 @@ def main():
     graph = Graph(list(zip(srcs.tolist(), tgts.tolist())))
     print('start')
     #pso = ParticleSwarm(graph = graph, N_swarm_size=5, D_dimension=len(graph.nodes), c1=1, c2=1, max_iterations=10)
-    pso = ParticleSwarm(graph, mtx, N_swarm_size=15, D_dimension=graph.vcount(), c1=1.0, c2=1.0, max_iterations=15)
-    print(pso.swarm_position)
+    pso = ParticleSwarm(
+        graph, mtx, N_swarm_size=args.popu_size, D_dimension=graph.vcount(), 
+        c1=args.local_effect, c2=args.global_effect, max_iterations=args.iterations
+    )
+    
     global_center, global_best = pso.particleSwarm()
     best_locus = pso.get_locus(global_center)
     num_cluster, membership = pso.get_membership(best_locus)
 
-    name = 'PSO_{}_{}.npy'.format(dataset.stem, np.round(global_best, 4))
-    np.save(ans_dir / Path(name), membership)
+    if args.no_save:
+        pass
+    else:
+        name = 'PSO_{}_{}.npy'.format(dataset.stem, np.round(global_best, 4))
+        np.save(ans_dir / Path(name), membership)
 
 if __name__ == '__main__':
-    main()
+    args = parser_PSO()
+    main(args)

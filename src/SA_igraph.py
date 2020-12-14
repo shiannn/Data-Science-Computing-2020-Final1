@@ -6,10 +6,13 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 import igraph
 from igraph import Graph, VertexClustering
-from config import karate_dataset, coauthors_dataset
+from config import karate_dataset, coauthors_dataset, ans_dir
+from pathlib import Path
+
+from argument import parser_SA
 
 class SimulatedAnnealing():
-    def __init__(self, graph, mtx):
+    def __init__(self, graph, mtx, max_iterations, min_temperature, epsilon):
         self.graph = graph
         self.mtx = mtx
         #self.pcur = np.random.randint(len(graph.nodes), size=len(graph.nodes))
@@ -18,11 +21,11 @@ class SimulatedAnnealing():
         #print(self.pcur.y)
         self.pnew = copy.deepcopy(self.pcur)
         self.pb = None
-        self.max_iterations = 10
+        self.max_iterations = max_iterations
         self.temperature = np.inf
-        self.min_temperature = 0.5
+        self.min_temperature = min_temperature
         self.Tstart = self.init_temperature()
-        self.epsilon = 0.025
+        self.epsilon = epsilon
 
     
     def init_temperature(self):
@@ -30,13 +33,13 @@ class SimulatedAnnealing():
 
     def simulated_annealing(self):
         self.pcur.y = self.f_objective_function(self.pcur.x)
-        print(self.pcur.y)
+        #print(self.pcur.y)
         self.pb = copy.deepcopy(self.pcur)
         iteration = 0
         while(not self.c_termination(iteration, self.temperature)):
             self.pnew.x = self.mutation(self.pcur.x)
             self.pnew.y = self.f_objective_function(self.pnew.x)
-            print(self.pnew.y)
+            #print(self.pnew.y)
             dE = -(self.pnew.y - self.pcur.y)
             #print(iteration, self.pcur.x, self.pcur.y)
             #print(dE, self.pnew.y, self.pcur.y)
@@ -70,7 +73,7 @@ class SimulatedAnnealing():
         #print('chosen_neigh', chosen_neighbor_id)
         #print('chosen_neigh mode', np.mod(chosen_neighbor_id, num_avail_neighbors))
         mut_pos = np.random.randint(self.graph.vcount(), size=self.graph.vcount()//2)
-        print(mut_pos)
+        #print(mut_pos)
         chosen_neighbor_id[mut_pos] += 1
         chosen_neighbor_id = np.mod(chosen_neighbor_id, num_avail_neighbors)
         #print(chosen_neighbor_id)
@@ -95,6 +98,14 @@ class SimulatedAnnealing():
         score = self.graph.modularity(membership)
         
         return score
+    
+    def get_membership(self, locus_based):
+        row = np.arange(locus_based.shape[0])
+        col = locus_based[row]
+        attempt_graph = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
+        num_cluster, membership = connected_components(attempt_graph)
+
+        return num_cluster, membership
 
 class Solution():
     def __init__(self, graph, mtx):
@@ -110,9 +121,12 @@ class Solution():
         self.y = None
         print(self.x)
 
-def main():
-    dataset = karate_dataset
-    #dataset = coauthors_dataset
+def main(args):
+    if args.datasets == 'karate':
+        dataset = karate_dataset
+    else:
+        dataset = coauthors_dataset
+
     print('read mtx file')
     mtx = mmread(str(dataset)).tocsr()
     print('to igraph')
@@ -122,13 +136,24 @@ def main():
     #graph = nx.from_scipy_sparse_matrix(kara_set)
     #ret = treetraverse(graph)
     #pso = ParticleSwarm(graph = graph, N_swarm_size=5, D_dimension=len(graph.nodes), c1=1, c2=1, max_iterations=10)
-    sa = SimulatedAnnealing(graph, mtx)
-    #global_center, global_best = pso.particleSwarm()
-    sa.simulated_annealing()
+    sa = SimulatedAnnealing(graph, mtx, 
+        args.iterations, args.min_temperature, args.epsilon
+    )
+    
+    best_sol = sa.simulated_annealing()
+    best_value = sa.f_objective_function(best_sol.x)
+    best_locus = best_sol.x
+    num_cluster, membership = sa.get_membership(best_locus)
+    print(membership)
+    print(best_value)
+
+    if args.no_save:
+        pass
+    else:
+        name = 'SA_{}_{}.npy'.format(dataset.stem, np.round(best_value, 4))
+        np.save(ans_dir / Path(name), membership)
     
 
-    #score = nx_comm.modularity(A, [{a for a in range(10)}, {a for a in range(10,34)}])
-    #print(score)
-
 if __name__ == '__main__':
-    main()
+    args = parser_SA()
+    main(args)
