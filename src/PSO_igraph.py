@@ -27,10 +27,12 @@ class ParticleSwarm():
             self.swarm_position = self.lower_bound + (self.upper_bound - self.lower_bound)* np.random.rand(
                 self.swarm_size, self.dimension
             )
+            #self.initial_position()
         else:
             self.swarm_position = position
 
         self.swarm_velocity = np.zeros((self.swarm_size, self.dimension))
+        #self.swarm_velocity = np.random.rand(self.swarm_size, self.dimension)
 
         self.local_best = ((-np.inf)* np.ones(self.swarm_size)).squeeze()
         self.global_best = -np.inf
@@ -44,6 +46,18 @@ class ParticleSwarm():
         self.max_iterations = max_iterations
         #print(self.graph.subgraph([1,20,33]).edges)
     
+    def initial_position(self):
+        num_avail_neighbors = np.diff(self.mtx.indptr)
+        neighbor_degrees = np.array(self.graph.degree(self.mtx.indices))
+        for idx, _ in enumerate(self.mtx.indptr[:-1]):
+            #print(self.mtx.indptr[idx])
+            #print(neighbor_degrees[self.mtx.indptr[idx]:self.mtx.indptr[idx+1]])
+            neign_degrees = neighbor_degrees[self.mtx.indptr[idx]:self.mtx.indptr[idx+1]]
+            max_degree_neighbor = np.argsort(neign_degrees)[-1]
+            #print(max_degree_neighbor)
+            self.swarm_position[:self.swarm_size//3, idx] = max_degree_neighbor / num_avail_neighbors[idx]
+        #print(self.swarm_position)
+
     def particleSwarm(self):
         for iteration in range(self.max_iterations):
             if self.converge(self.swarm_position):
@@ -77,9 +91,13 @@ class ParticleSwarm():
 
             self.swarm_position = self.swarm_position + self.swarm_velocity
             ### trim self.swarm_position
-            #self.swarm_position[self.swarm_position>1] -= np.floor(self.swarm_position)
-            #self.swarm_position[self.swarm_position<0] -= np.floor(self.swarm_position)
-            self.swarm_position -= np.floor(self.swarm_position)
+            #self.swarm_position[self.swarm_position>1] -= 2*(self.swarm_position[self.swarm_position>1]-1)
+            #self.swarm_position[self.swarm_position<0] *= -1
+            #self.swarm_position -= np.floor(self.swarm_position)
+            self.swarm_position[self.swarm_position>1] = 0.99999
+            self.swarm_position[self.swarm_position<0] = 0
+
+            #self.w = self.w_max - (self.w_max - self.w_min)* iteration / self.max_iterations
 
         #print('ans', self.global_center, self.global_best)
         return self.global_center, self.global_best
@@ -96,7 +114,12 @@ class ParticleSwarm():
             locus_based = self.get_locus(particle)
             #print(locus_based)
             num_cluster, membership = self.get_membership(locus_based)
-            score = self.graph.modularity(membership)
+            u, cnts = np.unique(membership, return_counts=True)
+            constrain_coeff = 0.5 if self.graph.vcount() < 100 else 0.1
+            if cnts.max() > constrain_coeff* self.graph.vcount():
+                score = 0
+            else:
+                score = self.graph.modularity(membership)
             scores.append(score)
             #print(score)
         scores = np.array(scores)
@@ -113,7 +136,9 @@ class ParticleSwarm():
         return num_cluster, membership
 
     def get_locus(self, x):
-        chosen_neighbor_ids = np.floor(np.diff(self.mtx.indptr)* x).astype(int)
+        num_avail_neighbors = np.diff(self.mtx.indptr)
+        #chosen_neighbor_ids = np.floor(num_avail_neighbors* x).astype(int)
+        chosen_neighbor_ids = np.mod(x*1000000, num_avail_neighbors).astype(int)
         neighs_pos = chosen_neighbor_ids + self.mtx.indptr[:-1]
         locus_based = self.mtx.indices[neighs_pos]
 

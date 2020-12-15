@@ -58,7 +58,7 @@ def parser_PSO():
     parser.add_argument('-p', '--popu_size', default=10, type=int, help='population size of PSO')
     parser.add_argument('-l', '--local_effect', type=float, default=1., help='local effect of PSO')
     parser.add_argument('-g', '--global_effect', type=float, default=1., help='global effect of PSO')
-    parser.add_argument('-w', '--particle_weight', type=float, default=1., help='particle weight of PSO')
+    parser.add_argument('-w', '--particle_weight', type=float, default=0.9, help='particle weight of PSO')
 
     parser.add_argument('-n', '--no_save', action="store_true", help='not to save')
 
