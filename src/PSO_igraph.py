@@ -168,8 +168,9 @@ def main(args):
     if args.no_save:
         pass
     else:
-        name = 'PSO_{}_{}.npy'.format(dataset.stem, np.round(global_best, 4))
-        np.save(ans_dir / Path(name), membership)
+        if global_best > 0.4:
+            name = 'PSO_{}_{}.npy'.format(dataset.stem, np.round(global_best, 4))
+            np.save(ans_dir / Path(name), membership)
 
 if __name__ == '__main__':
     args = parser_PSO()

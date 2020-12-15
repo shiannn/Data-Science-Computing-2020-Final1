@@ -9,7 +9,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 import time
 
-dataset = coauthors_dataset
+dataset = karate_dataset
 print(str(dataset))
 #karate_set = Graph.Load(str(karate_dataset), format="edge")
 #g = igraph.read(str(dataset), format='edge', directed=False)
@@ -35,6 +35,7 @@ for it in range(15):
     #print(available_neighbors)
     ### prob should start from zero
     prob = 1 / np.repeat(available_neighbors, available_neighbors)
+    print(prob.shape)
     roulle_wheel = np.cumsum(prob) - np.floor(np.cumsum(prob))
     roulle_wheel[mtx.indptr[1:] - 1] = 1
     roulle_wheel = roulle_wheel - prob
@@ -45,7 +46,7 @@ for it in range(15):
     shot_on_wheel = np.repeat(shot, available_neighbors)
     #print(shot_on_wheel)
     interval_points = shot_on_wheel < roulle_wheel
-    print(interval_points)
+    #print(interval_points)
     ### Find False -> True or left point == 1
     r_interval_points = np.roll(interval_points, -1)
     #print(r_interval_points)
@@ -58,15 +59,15 @@ for it in range(15):
     cum_selected_neighbors_ids = cum_selected_neighbors.nonzero()
     #print(cum_selected_neighbors_ids)
     neighbors = mtx.indices[cum_selected_neighbors_ids]
-    print('neighbors.shape', neighbors.shape)
+    #print('neighbors.shape', neighbors.shape)
     #exit(0)
     
     row = np.arange(neighbors.shape[0])
     col = neighbors[np.arange(neighbors.shape[0])]
-    print('row', row.shape, row)
-    print('col', col.shape, col)
+    #print('row', row.shape, row)
+    #print('col', col.shape, col)
     my_g = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
-    print(my_g.shape)
+    #print(my_g.shape)
     num_cluster, membership = connected_components(my_g)
     print(membership)
     score = g.modularity(membership)

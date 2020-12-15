@@ -1,5 +1,11 @@
 import argparse
 
+def parser_vis():
+    parser = argparse.ArgumentParser(description='Tabu parameter')
+    parser.add_argument('-l', '--load_membership', help='load membership.npy')
+
+    return parser.parse_args()
+
 def parser_Tabu():
     parser = argparse.ArgumentParser(description='Tabu parameter')
     parser.add_argument('-d', '--datasets', default='karate', help='dataset used')
@@ -28,9 +34,9 @@ def parser_ACO():
     parser.add_argument('-d', '--datasets', default='karate', help='dataset used')
 
     parser.add_argument('-i', '--iterations', default=100, type=int, help='number of iterations')
-    parser.add_argument('-p', '--popu_size', default=30, help='population size of ACO')
-    parser.add_argument('-e', '--evaporate', default=0.05, help='evaporate rate of ACO')
-    parser.add_argument('-t', '--eta_scale', default=0.1, help='eta scale of ACO')
+    parser.add_argument('-p', '--popu_size', default=15, type=int, help='population size of ACO')
+    parser.add_argument('-e', '--evaporate', default=0.05, type=float, help='evaporate rate of ACO')
+    parser.add_argument('-t', '--eta_scale', default=0.1, type=float, help='eta scale of ACO')
 
     parser.add_argument('-n', '--no_save', action="store_true", help='not to save')
 
@@ -41,10 +47,10 @@ def parser_GA():
     parser.add_argument('-d', '--datasets', default='karate', help='dataset used')
 
     parser.add_argument('-i', '--iterations', default=100, type=int, help='number of iterations')
-    parser.add_argument('-p', '--popu_size', default=120, help='population size of GA')
-    parser.add_argument('-m', '--mate_pool_size', default=50, help='mate pool size of GA')
-    parser.add_argument('-k', '--k_cross_points', default=100, help='number of crosspoints of GA')
-    parser.add_argument('-f', '--flip_locations', default=100, help='number of flip locations of GA')
+    parser.add_argument('-p', '--popu_size', default=50, type=int, help='population size of GA')
+    parser.add_argument('-m', '--mate_pool_size', default=30, type=int, help='mate pool size of GA')
+    parser.add_argument('-k', '--k_cross_points', default=100, type=int, help='number of crosspoints of GA')
+    parser.add_argument('-f', '--flip_locations', default=100, type=int, help='number of flip locations of GA')
 
     parser.add_argument('-n', '--no_save', action="store_true", help='not to save')
 

@@ -6,9 +6,10 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 import igraph
 from igraph import Graph, VertexClustering
-from config import karate_dataset, coauthors_dataset
+from config import karate_dataset, coauthors_dataset, ans_dir
 
 from argument import parser_ACO
+from pathlib import Path
 
 class AntColonyOptimization():
     def __init__(self, mtx, graph, N_particle_size=5, max_iterations=30, p_evaporates=0.5, alpha=1, eta_scale_parameter=2):
@@ -83,6 +84,8 @@ class AntColonyOptimization():
             ### the ant finish constructing its solution
             ### add pheromone on its trail
             self.update_pheromone(ants)
+            if self.best_cost > 0.30:
+                return
 
         
     def update_pheromone(self, ants):
@@ -112,6 +115,12 @@ class AntColonyOptimization():
         col = x[row]
         attempt_graph = csr_matrix((np.ones(row.shape), (row, col)), shape=(row.shape[0], col.shape[0]))
         num_cluster, membership = connected_components(attempt_graph)
+        u, cnts = np.unique(membership, return_counts=True)
+        constrain_coeff = 0.5 if self.graph.vcount() < 100 else 0.1
+        if cnts.max() > constrain_coeff* self.graph.vcount():
+            score = 0
+        else:
+            score = self.graph.modularity(membership)
         score = self.graph.modularity(membership)
         
         return score

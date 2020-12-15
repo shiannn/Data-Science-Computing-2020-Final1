@@ -9,8 +9,12 @@ from igraph import Graph, VertexClustering
 from config import karate_dataset, coauthors_dataset
 
 def main2():
-    membership = np.load('PCO_0.3504.npy')
+    membership = np.load('ans_membership/PSO_ca-coauthors-dblp_0.4107.npy')
     print(membership.shape)
+    uni, cnts = np.unique(membership, return_counts=True)
+    print(uni.shape)
+    print(cnts.sum())
+    print(cnts.max())
     
 def main():
     #dataset = karate_dataset
@@ -27,4 +31,4 @@ def main():
     print(score)
 
 if __name__ == '__main__':
-    main()
+    main2()

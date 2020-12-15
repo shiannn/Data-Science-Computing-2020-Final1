@@ -9,6 +9,7 @@ from igraph import Graph, VertexClustering
 from config import karate_dataset, coauthors_dataset, ans_dir
 
 from argument import parser_Tabu
+from pathlib import Path
 
 class TabuSearch():
     def __init__(self, graph, mtx, max_tabu_len, max_iterations):
@@ -154,13 +155,13 @@ def main(args):
     best_locus = best_sol.x
     num_cluster, membership = tabuSearch.get_membership(best_locus)
     print(best_value, membership)
-    exit(0)
 
     if args.no_save:
         pass
     else:
-        name = 'Tabu_{}_{}.npy'.format(dataset.stem, np.round(best_value, 4))
-        np.save(ans_dir / Path(name), membership)
+        if best_value > 0.37:
+            name = 'Tabu_{}_{}.npy'.format(dataset.stem, np.round(best_value, 4))
+            np.save(ans_dir / Path(name), membership)
 
 if __name__ == '__main__':
     args = parser_Tabu()
